@@ -733,7 +733,7 @@ class OTSImplement implements OTSInterface {
   public void deleteTable(String tableName) throws IOException {
     DeleteTableRequest request = new DeleteTableRequest(tableName);
     try {
-      ots.deleteTable(request, null);
+      ots.deleteTable(request, null).get();
     } catch (Throwable ex) {
       if (shouldRetry(ex)) {
         throw new IOException(ex);
