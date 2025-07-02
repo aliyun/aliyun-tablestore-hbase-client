@@ -5,16 +5,20 @@ import java.util.*;
 
 import com.alicloud.openservices.tablestore.model.ColumnValue;
 import com.alicloud.openservices.tablestore.model.Condition;
+import com.alicloud.openservices.tablestore.model.condition.ColumnCondition;
 import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
-import com.alicloud.tablestore.adaptor.client.util.Preconditions;
-import com.alicloud.tablestore.adaptor.filter.*;
+import com.alicloud.tablestore.adaptor.filter.OColumnPaginationFilter;
 import com.alicloud.tablestore.adaptor.struct.*;
 import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.exceptions.IllegalArgumentIOException;
 import org.apache.hadoop.hbase.filter.*;
 import org.apache.hadoop.hbase.io.TimeRange;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import com.alicloud.tablestore.adaptor.filter.OFilter;
+import com.alicloud.tablestore.adaptor.filter.OFilterList;
+import com.alicloud.tablestore.adaptor.filter.OSingleColumnValueFilter;
 import com.alicloud.tablestore.adaptor.filter.OSingleColumnValueFilter.OCompareOp;
 
 public class ElementConvertor {
@@ -33,8 +37,6 @@ public class ElementConvertor {
 
         checkDeleteSupport(in);
 
-        // there are 5 types delete in hbase: deleteRow, deleteColumn, deleteColumns, deleteFamily, deleteFamilyVersion
-        // if no familyEntry in FamilyCellMap, then the type is deleteRow
         for (Map.Entry<byte[], List<Cell>> familyEntry : in.getFamilyCellMap().entrySet()) {
             for (Cell cell : familyEntry.getValue()) {
                 if (!CellUtil.isDelete(cell)) {
@@ -45,29 +47,22 @@ public class ElementConvertor {
                 byte[] qualifier = CellUtil.cloneQualifier(cell);
                 long timestamp = cell.getTimestamp();
                 KeyValue.Type kvType = KeyValue.Type.codeToType(cell.getTypeByte());
-                if (kvType.equals(KeyValue.Type.Delete)) { // deleteColumn
+                if (kvType.equals(KeyValue.Type.Delete)) {
                     if (timestamp == HConstants.LATEST_TIMESTAMP) {
                         throw new UnsupportedOperationException(
-                                "Delete latest version is not supported");
+                                "Delete leatest version is not supportted");
                     } else {
                         out.deleteColumn(columnMapping.getTablestoreColumn(family, qualifier), timestamp);
                     }
-                } else if (kvType.equals(KeyValue.Type.DeleteColumn)) { // deleteColumns
+                } else if (kvType.equals(KeyValue.Type.DeleteColumn)) {
                     if (timestamp == HConstants.LATEST_TIMESTAMP) {
                         out.deleteColumns(columnMapping.getTablestoreColumn(family, qualifier));
                     } else {
                         throw new UnsupportedOperationException(
-                                "Delete versions less than specified timestamp is not supported");
+                                "Delete versions less than specified timestamp is not supportted");
                     }
                 } else if (kvType.equals(KeyValue.Type.DeleteFamily)) {
                     // this means delete whole row in OTS
-                } else if (kvType.equals(KeyValue.Type.DeleteFamilyVersion)) { // deleteFamilyVersion
-                    if (timestamp == HConstants.LATEST_TIMESTAMP) {
-                        // this means delete whole row in OTS
-                    } else {
-                        throw new UnsupportedOperationException(
-                                "Delete versions less than specified timestamp is not supported");
-                    }
                 }
             }
         }
@@ -91,15 +86,10 @@ public class ElementConvertor {
             long timestamp = columnValue.getTimestamp();
 
             OColumnValue.Type type = columnValue.getType();
-            switch (type) {
-                case DELETE:
-                    out.addColumn(family, qualifier, timestamp);
-                    break;
-                case DELETE_ALL:
-                    out.addColumns(family, qualifier, timestamp);
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unsupported type for toHBaseDelete: " + type);
+            if (type == OColumnValue.Type.DELETE) {
+                out.addColumn(family, qualifier, timestamp);
+            } else if (type == OColumnValue.Type.DELETE_ALL) {
+                out.addColumns(family, qualifier, timestamp);
             }
         }
 
@@ -110,11 +100,11 @@ public class ElementConvertor {
         if (in.getACL() != null) {
             throw new UnsupportedOperationException("Delete#setACL() is not supported");
         }
+        if (in.getTimeStamp() != Long.MAX_VALUE) {
+            throw new UnsupportedOperationException("Delete#setTimeStamp() is not supported");
+        }
         if (in.getTTL() != Long.MAX_VALUE) {
             throw new UnsupportedOperationException("Delete#setTTL() is not supported");
-        }
-        if (in.getTimestamp() != HConstants.LATEST_TIMESTAMP) {
-            throw new UnsupportedOperationException("Delete#setTimestamp() is not supported");
         }
         if (in.getDurability() != Durability.USE_DEFAULT) {
             throw new UnsupportedOperationException("Delete#setDurability() is not supported");
@@ -175,7 +165,7 @@ public class ElementConvertor {
      * @return <code>OGet</code> object
      * @throws IOException
      */
-    public static OGet toOtsGet(Get in, ColumnMapping columnMapping) throws IOException,UnsupportedOperationException {
+    static OGet toOtsGet(Get in, ColumnMapping columnMapping) throws IOException,UnsupportedOperationException {
         OGet out = new OGet(in.getRow());
         validateMultiFamilySupport(in.getFamilyMap().keySet(), columnMapping, true);
         if (!in.getFamilyMap().isEmpty()) {
@@ -240,7 +230,6 @@ public class ElementConvertor {
     }
 
     private static OFilter toOtsFilter(Filter filter, ColumnMapping columnMapping) {
-        Preconditions.checkNotNull(filter);
         if (filter instanceof FilterList) {
             List<OFilter> otsFilters = new ArrayList<OFilter>();
             for (Filter hbaseFilter : ((FilterList) filter).getFilters()) {
@@ -254,8 +243,6 @@ public class ElementConvertor {
                 return toOtsSingleColumnValueFilter((SingleColumnValueFilter) filter, columnMapping);
             } else if (filter instanceof ColumnPaginationFilter) {
                 return toOtsColumnPaginationFilter((ColumnPaginationFilter)filter);
-            } else if (filter instanceof ColumnRangeFilter) {
-                return toOtsColumnRangeFilter((ColumnRangeFilter)filter);
             } else {
                 throw new IllegalArgumentException("unsupported filter type "
                         + filter.getClass().getName()
@@ -270,7 +257,8 @@ public class ElementConvertor {
         if ((hbaseFilter.getComparator() instanceof BinaryComparator)) {
             OCompareOp compareOp = OCompareOp.valueOf(hbaseFilter.getOperator()
                     .name());
-            byte[] otsColumn = columnMapping.getTablestoreColumn(hbaseFilter.getFamily(), hbaseFilter.getQualifier());
+            byte[] otsColumn = columnMapping.getTablestoreColumn(hbaseFilter.getFamily(),
+                    hbaseFilter.getQualifier());
             OSingleColumnValueFilter otsFilter = new OSingleColumnValueFilter(
                     otsColumn, compareOp, hbaseFilter.getComparator().getValue());
             otsFilter.setFilterIfMissing(hbaseFilter.getFilterIfMissing());
@@ -287,10 +275,6 @@ public class ElementConvertor {
         } else {
             return new OColumnPaginationFilter(filter.getLimit(), filter.getOffset());
         }
-    }
-
-    private static OFilter toOtsColumnRangeFilter(ColumnRangeFilter filter) {
-        return new OColumnRangeFilter(filter);
     }
 
     /**
@@ -385,7 +369,7 @@ public class ElementConvertor {
                                            ColumnMapping columnMapping)
     {
         byte[] columnValue = value == null ? new byte[0] : value;
-        String columnName = ColumnMapping.getTablestoreColumnName(columnMapping.getTablestoreColumn(family, qualifier));
+        String columnName = Bytes.toString(columnMapping.getTablestoreColumn(family, qualifier));
         SingleColumnValueCondition columnCondition = new SingleColumnValueCondition(columnName,
                 columnMapping.getTablestoreCompareOp(compareOp),
                 ColumnValue.fromBinary(columnValue));

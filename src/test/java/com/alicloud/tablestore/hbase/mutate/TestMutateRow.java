@@ -38,7 +38,6 @@ public class TestMutateRow {
         ResultScanner scanResult = table.getScanner(scan);
 
         for (Result row : scanResult) {
-            if (row.getRow() == null) continue;
             Delete delete = new Delete(row.getRow());
             table.delete(delete);
         }

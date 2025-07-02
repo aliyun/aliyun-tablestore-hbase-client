@@ -37,7 +37,7 @@ public class TestToHbaseDelete {
     public void testDeleteOneRow() throws IOException {
         Delete delete = new Delete(Bytes.toBytes("pk"));
 
-        ODelete odelete = ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
+        ODelete odelete= ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
         Delete target = ElementConvertor.toHBaseDelete(odelete, tablestoreColumnMapping);
         assertEquals(delete.toJSON(), target.toJSON());
     }
@@ -49,7 +49,7 @@ public class TestToHbaseDelete {
         Delete delete = new Delete(Bytes.toBytes("pk2"));
         delete.addColumn(familyName, Bytes.toBytes("col_1"), 2000);
 
-        ODelete odelete = ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
+        ODelete odelete= ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
         Delete target = ElementConvertor.toHBaseDelete(odelete, tablestoreColumnMapping);
         assertEquals(delete.toJSON(), target.toJSON());
     }
@@ -59,7 +59,7 @@ public class TestToHbaseDelete {
         Delete delete = new Delete(Bytes.toBytes("pk3"));
         delete.addFamily(Bytes.toBytes(family));
 
-        ODelete odelete = ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
+        ODelete odelete= ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
         Delete target = ElementConvertor.toHBaseDelete(odelete, tablestoreColumnMapping);
         target.addFamily(Bytes.toBytes(family)); // family is ignore
         assertEquals(delete.toJSON(), target.toJSON());
@@ -70,19 +70,20 @@ public class TestToHbaseDelete {
         Delete delete = new Delete(Bytes.toBytes("pk4"));
         delete.addFamily(Bytes.toBytes(family), 1000);
 
-        ODelete odelete = ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
+        ODelete odelete= ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
         Delete target = ElementConvertor.toHBaseDelete(odelete, tablestoreColumnMapping);
         target.addFamily(Bytes.toBytes(family), 1000); // family is ignore
         assertEquals(delete.toJSON(), target.toJSON());
     }
 
-    @Test(expected=UnsupportedOperationException.class)
+    @Test
     public void testDeleteWithFamilyVersion() throws IOException {
         Delete delete = new Delete(Bytes.toBytes("pk9"));
         delete.addFamilyVersion(Bytes.toBytes(family), 3000);
 
-        ODelete odelete = ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
+        ODelete odelete= ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
         Delete target = ElementConvertor.toHBaseDelete(odelete, tablestoreColumnMapping);
+        target.addFamilyVersion(Bytes.toBytes(family), 3000);
         assertEquals(delete.toJSON(), target.toJSON());
     }
 
@@ -91,7 +92,7 @@ public class TestToHbaseDelete {
         Delete delete = new Delete(Bytes.toBytes("pk10"));
         delete.addColumns(Bytes.toBytes(family), Bytes.toBytes("col-1"));
 
-        ODelete odelete = ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
+        ODelete odelete= ElementConvertor.toOtsDelete(delete, tablestoreColumnMapping);
         Delete target = ElementConvertor.toHBaseDelete(odelete, tablestoreColumnMapping);
         assertEquals(delete.toJSON(), target.toJSON());
     }

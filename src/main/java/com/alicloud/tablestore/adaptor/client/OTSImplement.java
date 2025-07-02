@@ -12,11 +12,10 @@ import com.alicloud.openservices.tablestore.model.*;
 import com.alicloud.tablestore.adaptor.DoNotRetryIOException;
 import com.alicloud.tablestore.adaptor.client.util.OTSUtil;
 import com.alicloud.tablestore.adaptor.client.util.Preconditions;
-import com.alicloud.tablestore.adaptor.struct.ODelete;
 import com.alicloud.tablestore.adaptor.struct.OTableDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 
-public class OTSImplement implements OTSInterface {
+class OTSImplement implements OTSInterface {
 
   private int retryCount;
   private int maxBatchRowCount;
@@ -46,7 +45,7 @@ public class OTSImplement implements OTSInterface {
       GetRowResponse result = ots.getRow(getRowRequest, null).get();
       return OTSUtil.parseOTSRowToResult(result.getRow());
     } catch (Throwable ex) {
-      if (OTSUtil.shouldRetry(ex)) {
+      if (shouldRetry(ex)) {
         throw new IOException(ex);
       } else {
         throw new DoNotRetryIOException(ex.getMessage(), ex);
@@ -104,7 +103,7 @@ public class OTSImplement implements OTSInterface {
       RowUpdateChange rowPutChange = put.toOTSParameter(tableName);
       ots.updateRow(new UpdateRowRequest(rowPutChange), null).get();
     } catch (Throwable ex) {
-      if (OTSUtil.shouldRetry(ex)) {
+      if (shouldRetry(ex)) {
         throw new IOException(ex);
       } else {
         throw new DoNotRetryIOException(ex.getMessage(), ex);
@@ -126,7 +125,7 @@ public class OTSImplement implements OTSInterface {
         ots.updateRow(new UpdateRowRequest((RowUpdateChange) rowChange), null).get();
       }
     } catch (Throwable ex) {
-      if (OTSUtil.shouldRetry(ex)) {
+      if (shouldRetry(ex)) {
         throw new IOException(ex);
       } else {
         throw new DoNotRetryIOException(ex.getMessage(), ex);
@@ -167,12 +166,28 @@ public class OTSImplement implements OTSInterface {
       RowUpdateChange rowUpdateChange = update.toOTSParameter(tableName);
       ots.updateRow(new UpdateRowRequest(rowUpdateChange), null).get();
     } catch (Throwable ex) {
-      if (OTSUtil.shouldRetry(ex)) {
+      if (shouldRetry(ex)) {
         throw new IOException(ex);
       } else {
         throw new DoNotRetryIOException(ex.getMessage(), ex);
       }
     }
+  }
+
+  private boolean shouldRetry(Throwable ex) {
+    if (ex instanceof TableStoreException) {
+      String errorCode = ((TableStoreException) ex).getErrorCode();
+      if (errorCode.equals(OTSErrorCode.INVALID_PARAMETER)
+          || errorCode.equals(OTSErrorCode.AUTHORIZATION_FAILURE)
+          || errorCode.equals(OTSErrorCode.INVALID_PK)
+          || errorCode.equals(OTSErrorCode.OUT_OF_COLUMN_COUNT_LIMIT)
+          || errorCode.equals(OTSErrorCode.OUT_OF_ROW_SIZE_LIMIT)
+          || errorCode.equals(OTSErrorCode.CONDITION_CHECK_FAIL)
+          || errorCode.equals(OTSErrorCode.REQUEST_TOO_LARGE)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private void batchGet(String tableName, List<com.alicloud.tablestore.adaptor.struct.OGet> gets, Object[] results) throws IOException {
@@ -190,7 +205,7 @@ public class OTSImplement implements OTSInterface {
         // check should retry
         boolean shouldRetryVar = false;
         if (results[i] instanceof Throwable) {
-          if (OTSUtil.shouldRetry((Throwable) results[i])) {
+          if (shouldRetry((Throwable) results[i])) {
             shouldRetryVar = true;
           } else {
             error = (Throwable) results[i];
@@ -226,7 +241,7 @@ public class OTSImplement implements OTSInterface {
       boolean hasItemNeedRetry = false;
       for (int i = 0; i < size; i++) {
         if (results[i] instanceof Throwable) {
-          if (OTSUtil.shouldRetry((Throwable) results[i])) {
+          if (shouldRetry((Throwable) results[i])) {
             hasItemNeedRetry = true;
             break;
           }
@@ -273,7 +288,7 @@ public class OTSImplement implements OTSInterface {
         // check should retry
         boolean shouldRetryVar = false;
         if (results[i] instanceof Throwable) {
-          if (OTSUtil.shouldRetry((Throwable) results[i])) {
+          if (shouldRetry((Throwable) results[i])) {
             shouldRetryVar = true;
           } else {
             error = (Throwable) results[i];
@@ -309,11 +324,7 @@ public class OTSImplement implements OTSInterface {
           try {
             BatchWriteRowResponse result = (BatchWriteRowResponse) future.get();
             for (BatchWriteRowResponse.RowResult res : result.getSucceedRows()) {
-              byte[] rowKey = null;
-              if (res.getRow() != null) {
-                rowKey = res.getRow().getPrimaryKey().getPrimaryKeyColumn(0).getValue().asBinary();
-              }
-              results[batchIndexes.get(i).get(res.getIndex())] = new com.alicloud.tablestore.adaptor.struct.OResult(rowKey, new com.alicloud.tablestore.adaptor.struct.OColumnValue[0]);
+              results[batchIndexes.get(i).get(res.getIndex())] = new com.alicloud.tablestore.adaptor.struct.OResult(new com.alicloud.tablestore.adaptor.struct.OColumnValue[0]);
             }
             for (BatchWriteRowResponse.RowResult res : result.getFailedRows()) {
               TableStoreException ex =
@@ -324,7 +335,7 @@ public class OTSImplement implements OTSInterface {
             }
           } catch (Throwable ex) {
             error = ex;
-            if (!OTSUtil.shouldRetry(ex)) {
+            if (!shouldRetry(ex)) {
               throw ex;
             }
             for (int idx : batchIndexes.get(i)) {
@@ -333,7 +344,7 @@ public class OTSImplement implements OTSInterface {
           }
         } catch (Throwable ex) {
           error = ex;
-          if (!OTSUtil.shouldRetry(ex)) {
+          if (!shouldRetry(ex)) {
             throw new DoNotRetryIOException(error.getMessage(), error);
           }
           for (int idx : batchIndexes.get(i)) {
@@ -347,7 +358,7 @@ public class OTSImplement implements OTSInterface {
       boolean hasItemNeedRetry = false;
       for (int i = 0; i < size; i++) {
         if (results[i] instanceof Throwable) {
-          if (OTSUtil.shouldRetry((Throwable) results[i])) {
+          if (shouldRetry((Throwable) results[i])) {
             hasItemNeedRetry = true;
             break;
           }
@@ -388,30 +399,28 @@ public class OTSImplement implements OTSInterface {
         // check should retry
         boolean shouldRetryVar = false;
         if (results[i] instanceof Throwable) {
-          if (OTSUtil.shouldRetry((Throwable) results[i])) {
+          if (shouldRetry((Throwable) results[i])) {
             shouldRetryVar = true;
           } else {
             error = (Throwable) results[i];
           }
         }
         if (retried == 0 || shouldRetryVar) {
-          ODelete oDelete = deletes.get(i);
-          RowChange rowChange = oDelete.toOTSParameter(tableName);
           if (batchCount < maxBatchRowCount
-              && (batchCount == 0 || (batchSize + oDelete.getWritableSize()) <= maxBatchDataSize)) {
-            request.addRowChange(rowChange);
+              && (batchCount == 0 || (batchSize + deletes.get(i).getWritableSize()) <= maxBatchDataSize)) {
+            request.addRowChange(deletes.get(i).toOTSParameter(tableName));
             requestIndexes.add(i);
-            batchSize += oDelete.getWritableSize();
+            batchSize += deletes.get(i).getWritableSize();
             batchCount++;
           } else {
             batches.add(request);
             batchIndexes.add(requestIndexes);
             request = new BatchWriteRowRequest();
             requestIndexes = new ArrayList<Integer>();
-            request.addRowChange(rowChange);
+            request.addRowChange(deletes.get(i).toOTSParameter(tableName));
             requestIndexes.add(i);
             batchCount = 1;
-            batchSize = oDelete.getWritableSize();
+            batchSize = deletes.get(i).getWritableSize();
           }
         }
         if (i == size - 1 && batchCount > 0) {
@@ -426,7 +435,7 @@ public class OTSImplement implements OTSInterface {
           futures[i] = ots.batchWriteRow(batches.get(i), null);
         } catch (Throwable ex) {
           error = ex;
-          if (!OTSUtil.shouldRetry(ex)) {
+          if (!shouldRetry(ex)) {
             throw new DoNotRetryIOException(error.getMessage(), error);
           }
           for (int idx : batchIndexes.get(i)) {
@@ -440,11 +449,7 @@ public class OTSImplement implements OTSInterface {
           try {
             BatchWriteRowResponse result = (BatchWriteRowResponse) futures[i].get();
             for (BatchWriteRowResponse.RowResult res : result.getSucceedRows()) {
-              byte[] rowKey = null;
-              if (res.getRow() != null) {
-                rowKey = res.getRow().getPrimaryKey().getPrimaryKeyColumn(0).getValue().asBinary();
-              }
-              results[batchIndexes.get(i).get(res.getIndex())] = new com.alicloud.tablestore.adaptor.struct.OResult(rowKey, new com.alicloud.tablestore.adaptor.struct.OColumnValue[0]);
+              results[batchIndexes.get(i).get(res.getIndex())] = new com.alicloud.tablestore.adaptor.struct.OResult(new com.alicloud.tablestore.adaptor.struct.OColumnValue[0]);
             }
             for (BatchWriteRowResponse.RowResult res : result.getFailedRows()) {
               TableStoreException ex =
@@ -455,7 +460,7 @@ public class OTSImplement implements OTSInterface {
             }
           } catch (Throwable ex) {
             error = ex;
-            if (!OTSUtil.shouldRetry(ex)) {
+            if (!shouldRetry(ex)) {
               throw new DoNotRetryIOException(error.getMessage(), error);
             }
             for (int idx : batchIndexes.get(i)) {
@@ -470,7 +475,7 @@ public class OTSImplement implements OTSInterface {
       boolean hasItemNeedRetry = false;
       for (int i = 0; i < size; i++) {
         if (results[i] instanceof Throwable) {
-          if (OTSUtil.shouldRetry((Throwable) results[i])) {
+          if (shouldRetry((Throwable) results[i])) {
             hasItemNeedRetry = true;
             break;
           }
@@ -511,30 +516,28 @@ public class OTSImplement implements OTSInterface {
         // check should retry
         boolean shouldRetryVar = false;
         if (results[i] instanceof Throwable) {
-          if (OTSUtil.shouldRetry((Throwable) results[i])) {
+          if (shouldRetry((Throwable) results[i])) {
             shouldRetryVar = true;
           } else {
             error = (Throwable) results[i];
           }
         }
         if (retried == 0 || shouldRetryVar) {
-          ODelete oDelete = deletes.get(i);
-          RowChange rowChange = oDelete.toOTSParameter(tableName);
           if (batchCount < maxBatchRowCount
-              && (batchCount == 0 || (batchSize + oDelete.getWritableSize()) <= maxBatchDataSize)) {
-            request.addRowChange(rowChange);
+              && (batchCount == 0 || (batchSize + deletes.get(i).getWritableSize()) <= maxBatchDataSize)) {
+            request.addRowChange(deletes.get(i).toOTSParameter(tableName));
             requestIndexes.add(i);
-            batchSize += oDelete.getWritableSize();
+            batchSize += deletes.get(i).getWritableSize();
             batchCount++;
           } else {
             batches.add(request);
             batchIndexes.add(requestIndexes);
             request = new BatchWriteRowRequest();
             requestIndexes = new ArrayList<Integer>();
-            request.addRowChange(rowChange);
+            request.addRowChange(deletes.get(i).toOTSParameter(tableName));
             requestIndexes.add(i);
             batchCount = 1;
-            batchSize = oDelete.getWritableSize();
+            batchSize = deletes.get(i).getWritableSize();
           }
         }
         if (i == size - 1 && batchCount > 0) {
@@ -549,7 +552,7 @@ public class OTSImplement implements OTSInterface {
           futures[i] = ots.batchWriteRow(batches.get(i), null);
         } catch (Throwable ex) {
           error = ex;
-          if (!OTSUtil.shouldRetry(ex)) {
+          if (!shouldRetry(ex)) {
             throw new DoNotRetryIOException(error.getMessage(), error);
           }
           for (int idx : batchIndexes.get(i)) {
@@ -563,11 +566,7 @@ public class OTSImplement implements OTSInterface {
           try {
             BatchWriteRowResponse result = (BatchWriteRowResponse) futures[i].get();
             for (BatchWriteRowResponse.RowResult res : result.getSucceedRows()) {
-              byte[] rowKey = null;
-              if (res.getRow() != null) {
-                rowKey = res.getRow().getPrimaryKey().getPrimaryKeyColumn(0).getValue().asBinary();
-              }
-              results[batchIndexes.get(i).get(res.getIndex())] = new com.alicloud.tablestore.adaptor.struct.OResult(rowKey, new com.alicloud.tablestore.adaptor.struct.OColumnValue[0]);
+              results[batchIndexes.get(i).get(res.getIndex())] = new com.alicloud.tablestore.adaptor.struct.OResult(new com.alicloud.tablestore.adaptor.struct.OColumnValue[0]);
             }
             for (BatchWriteRowResponse.RowResult res : result.getFailedRows()) {
               TableStoreException ex =
@@ -578,7 +577,7 @@ public class OTSImplement implements OTSInterface {
             }
           } catch (Throwable ex) {
             error = ex;
-            if (!OTSUtil.shouldRetry(ex)) {
+            if (!shouldRetry(ex)) {
               throw new DoNotRetryIOException(error.getMessage(), error);
             }
             for (int idx : batchIndexes.get(i)) {
@@ -593,7 +592,7 @@ public class OTSImplement implements OTSInterface {
       boolean hasItemNeedRetry = false;
       for (int i = 0; i < size; i++) {
         if (results[i] instanceof Throwable) {
-          if (OTSUtil.shouldRetry((Throwable) results[i])) {
+          if (shouldRetry((Throwable) results[i])) {
             hasItemNeedRetry = true;
             break;
           }
@@ -702,7 +701,7 @@ public class OTSImplement implements OTSInterface {
       ListTableResponse response = ots.listTable(null).get();
       return response.getTableNames();
     } catch (Throwable ex) {
-      if (OTSUtil.shouldRetry(ex)) {
+      if (shouldRetry(ex)) {
         throw new IOException(ex);
       } else {
         throw new DoNotRetryIOException(ex.getMessage(), ex);
@@ -723,7 +722,7 @@ public class OTSImplement implements OTSInterface {
     try {
       ots.createTable(request, null).get();
     } catch (Throwable ex) {
-      if (OTSUtil.shouldRetry(ex)) {
+      if (shouldRetry(ex)) {
         throw new IOException(ex);
       } else {
         throw new DoNotRetryIOException(ex.getMessage(), ex);
@@ -734,9 +733,9 @@ public class OTSImplement implements OTSInterface {
   public void deleteTable(String tableName) throws IOException {
     DeleteTableRequest request = new DeleteTableRequest(tableName);
     try {
-      ots.deleteTable(request, null).get();
+      ots.deleteTable(request, null);
     } catch (Throwable ex) {
-      if (OTSUtil.shouldRetry(ex)) {
+      if (shouldRetry(ex)) {
         throw new IOException(ex);
       } else {
         throw new DoNotRetryIOException(ex.getMessage(), ex);
@@ -754,9 +753,9 @@ public class OTSImplement implements OTSInterface {
       tableDescriptor.setMaxVersion(response.getTableOptions().getMaxVersions());
       tableDescriptor.setTimeToLive(response.getTableOptions().getTimeToLive());
 
-      List<PrimaryKey> primaryKeys = response.getShardSplits();
+      List<PrimaryKey> primmaryKeys = response.getShardSplits();
       byte[] start = HConstants.EMPTY_START_ROW;
-      for (PrimaryKey primaryKey : primaryKeys) {
+      for (PrimaryKey primaryKey : primmaryKeys) {
         byte[] end = primaryKey.getPrimaryKeyColumn(0).getValue().asBinary();
         tableDescriptor.addSplitKey(start, end);
         start = end;
@@ -764,7 +763,7 @@ public class OTSImplement implements OTSInterface {
       tableDescriptor.addSplitKey(start, HConstants.EMPTY_END_ROW);
       return tableDescriptor;
     } catch (Throwable ex) {
-      if (OTSUtil.shouldRetry(ex)) {
+      if (shouldRetry(ex)) {
         throw new IOException(ex);
       } else {
         throw new DoNotRetryIOException(ex.getMessage(), ex);
@@ -783,7 +782,7 @@ public class OTSImplement implements OTSInterface {
     try {
       ots.updateTable(request, null).get();
     } catch (Throwable ex) {
-      if (OTSUtil.shouldRetry(ex)) {
+      if (shouldRetry(ex)) {
         throw new IOException(ex);
       } else {
         throw new DoNotRetryIOException(ex.getMessage(), ex);

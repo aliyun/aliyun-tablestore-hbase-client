@@ -12,11 +12,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.Iterator;
 
@@ -243,45 +238,24 @@ public class Bytes {
   }
 
   /**
+   * @param b Presumed UTF-8 encoded byte array.
+   * @return String made from <code>b</code>
+   */
+  public static String toString(final byte[] b) {
+    if (b == null) {
+      return null;
+    }
+    return toString(b, 0, b.length);
+  }
+
+  /**
    * Joins two byte arrays together using a separator.
    * @param b1 The first byte array.
    * @param sep The separator to use.
    * @param b2 The second byte array.
    */
   public static String toString(final byte[] b1, String sep, final byte[] b2) {
-    return toString(b1) + sep + toString(b2);
-  }
-
-  /**
-   * Convert byte array to string.
-   * Default use UTF-8 encoding.
-   * @param b byte array
-   */
-  public static String toString(final byte[] b) {
-    return toStringUTF8(b);
-  }
-
-  /**
-   * Convert byte array to string.
-   * Default use UTF-8 encoding.
-   * @param b byte array.
-   * @param off offset into array.
-   * @param len length.
-   */
-  public static String toString(final byte[] b, int off, int len) {
-    return toStringUTF8(b, off, len);
-  }
-
-  /**
-   * This method will check if a string is a valid utf8 string.
-   * @param b Presumed UTF-8 encoded byte array.
-   * @return String made from <code>b</code>
-   */
-  public static String toStringUTF8(final byte[] b) {
-    if (b == null) {
-      return null;
-    }
-    return toStringUTF8(b, 0, b.length);
+    return toString(b1, 0, b1.length) + sep + toString(b2, 0, b2.length);
   }
 
   /**
@@ -292,42 +266,19 @@ public class Bytes {
    * @param len length of utf-8 sequence
    * @return String made from <code>b</code> or null
    */
-  public static String toStringUTF8(final byte[] b, int off, int len) {
+  public static String toString(final byte[] b, int off, int len) {
     if (b == null) {
       return null;
     }
     if (len == 0) {
       return "";
     }
-    byte[] result = new byte[len];
-    System.arraycopy(b, off, result, 0, len);
-
-    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT);
-
     try {
-      CharBuffer charBuffer = decoder.decode(ByteBuffer.wrap(result));
-      return charBuffer.toString();
-    } catch (CharacterCodingException e) {
-      // not valid utf-8
-      throw new IllegalArgumentException("UTF-8 not supported: ", e);
-    }
-  }
-
-  public static String toStringHex(final byte[] b) {
-    if (b == null) {
+      return new String(b, off, len, "UTF-8");
+    } catch (UnsupportedEncodingException e) {
+      LOG.error("UTF-8 not supported?", e);
       return null;
     }
-    return toStringHex(b, 0, b.length);
-  }
-
-  public static String toStringHex(final byte[] b, int off, int len) {
-    StringBuilder s = new StringBuilder("0x");
-    for (int i=off;i<off + len;i++) {
-      s.append(String.format("%02X", b[i]));
-    }
-    return s.toString();
   }
 
   /**
@@ -419,7 +370,7 @@ public class Bytes {
    * @param s string
    * @return the byte array
    */
-  public static byte[] toBytesUTF8(String s) {
+  public static byte[] toBytes(String s) {
     try {
       return s.getBytes("UTF-8");
     } catch (UnsupportedEncodingException e) {
@@ -427,11 +378,6 @@ public class Bytes {
       return null;
     }
   }
-
-  public static byte[] toBytes(String s) throws IllegalArgumentException {
-    return toBytesUTF8(s);
-  }
-
 
   /**
    * Convert a boolean to a byte array. True becomes -1 and false becomes 0.

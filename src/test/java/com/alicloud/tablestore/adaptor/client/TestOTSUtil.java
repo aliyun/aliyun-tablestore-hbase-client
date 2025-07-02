@@ -10,14 +10,13 @@ import com.alicloud.tablestore.adaptor.filter.OFilterList;
 import com.alicloud.tablestore.adaptor.filter.OSingleColumnValueFilter;
 import com.alicloud.tablestore.adaptor.struct.OColumnValue;
 import com.alicloud.tablestore.adaptor.struct.OResult;
-import com.alicloud.tablestore.hbase.ColumnMapping;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class TestOTSUtil {
   @Test
@@ -43,10 +42,7 @@ public class TestOTSUtil {
 
     List<OColumnValue> keyValues = result.getColumn(Bytes.toBytes("col0"));
     assertEquals(10, keyValues.size());
-    assertEquals("value", Bytes.toStringUTF8(keyValues.get(0).getValue()));
-
-    byte[] qualifier = Bytes.toBytes("col0");
-    assertArrayEquals(qualifier, Bytes.toBytes(Bytes.toString(qualifier)));
+    assertEquals("value", Bytes.toString(keyValues.get(0).getValue()));
 
     OColumnValue keyValue = result.getColumnLatest(Bytes.toBytes("col8"));
     assertEquals(9, keyValue.getTimestamp());
@@ -57,44 +53,38 @@ public class TestOTSUtil {
     NavigableMap<byte[], NavigableMap<Long, byte[]>> map = result.getMap();
 
     assertEquals(10, map.size());
-    assertEquals("value", Bytes.toStringUTF8(map.get(Bytes.toBytes("col0")).get(9L)));
-    assertEquals("value", Bytes.toStringUTF8(result.getValue(Bytes.toBytes("col0"))));
+    assertEquals("value", Bytes.toString(map.get(Bytes.toBytes("col0")).get(9L)));
+    assertEquals("value", Bytes.toString(result.getValue(Bytes.toBytes("col0"))));
 
     NavigableMap<byte[], byte[]> noVerMap = result.getNoVersionMap();
 
     assertEquals(10, noVerMap.size());
-    assertEquals("value", Bytes.toStringUTF8(noVerMap.get(Bytes.toBytes("col0"))));
+    assertEquals("value", Bytes.toString(noVerMap.get(Bytes.toBytes("col0"))));
   }
 
   @Test
-  public void testToColumnValueFilter() {
-    List<PrimaryKeyColumn> primaryKeyColumnList = new ArrayList<PrimaryKeyColumn>();
-    primaryKeyColumnList.add(new PrimaryKeyColumn(OTSConstants.PRIMARY_KEY_NAME,
-            PrimaryKeyValue.fromBinary(Bytes.toBytes("pk"))));
-    PrimaryKey primaryKey = new PrimaryKey(primaryKeyColumnList);
-    SingleRowQueryCriteria criteria = new SingleRowQueryCriteria("testTable", primaryKey);
-
+  public void testToFilter() {
     OFilter filter =
             new OSingleColumnValueFilter(Bytes.toBytes("col"),
                     OSingleColumnValueFilter.OCompareOp.EQUAL, Bytes.toBytes("value"));
     com.alicloud.openservices.tablestore.model.filter.SingleColumnValueFilter otsFilter
-            = (com.alicloud.openservices.tablestore.model.filter.SingleColumnValueFilter) OTSUtil.toColumnValueFilter(criteria, filter);
+            = (com.alicloud.openservices.tablestore.model.filter.SingleColumnValueFilter) OTSUtil.toFilter(filter);
 
-    assertEquals(Bytes.toString(Bytes.toBytes("col")), otsFilter.getColumnName());
+    assertEquals("col", otsFilter.getColumnName());
     assertEquals(com.alicloud.openservices.tablestore.model.filter.SingleColumnValueFilter.CompareOperator.EQUAL, otsFilter.getOperator());
-    assertEquals(Bytes.toString(Bytes.toBytes("value")), Bytes.toString(otsFilter.getColumnValue().asBinary()));
+    assertEquals("value", Bytes.toString(otsFilter.getColumnValue().asBinary()));
     assertEquals(FilterType.SINGLE_COLUMN_VALUE_FILTER, otsFilter.getFilterType());
 
     filter = new OFilterList();
-    CompositeColumnValueFilter otsFilter1 = (CompositeColumnValueFilter) OTSUtil.toColumnValueFilter(criteria, filter);
-    assertNull(otsFilter1);
+    CompositeColumnValueFilter otsFilter1 = (CompositeColumnValueFilter) OTSUtil.toFilter(filter);
+    assertEquals(CompositeColumnValueFilter.LogicOperator.AND, otsFilter1.getOperationType());
 
     OFilterList filterList = new OFilterList(OFilterList.Operator.MUST_PASS_ONE);
     filterList.addFilter(new OSingleColumnValueFilter(Bytes.toBytes("col1"),
             OSingleColumnValueFilter.OCompareOp.GREATER, Bytes.toBytes("val")));
     filterList.addFilter(new OSingleColumnValueFilter(Bytes.toBytes("col2"),
             OSingleColumnValueFilter.OCompareOp.LESS, Bytes.toBytes("val")));
-    CompositeColumnValueFilter otsFilter2 = (CompositeColumnValueFilter) OTSUtil.toColumnValueFilter(criteria, filterList);
+    CompositeColumnValueFilter otsFilter2 = (CompositeColumnValueFilter) OTSUtil.toFilter(filterList);
 
     assertEquals(FilterType.COMPOSITE_COLUMN_VALUE_FILTER, otsFilter2.getFilterType());
     assertEquals(CompositeColumnValueFilter.LogicOperator.OR, otsFilter2.getOperationType());
@@ -103,8 +93,8 @@ public class TestOTSUtil {
 
     com.alicloud.openservices.tablestore.model.filter.SingleColumnValueFilter otsFilter3 =
             (com.alicloud.openservices.tablestore.model.filter.SingleColumnValueFilter) otsFilter2.getSubFilters().get(0);
-    assertEquals(Bytes.toString(Bytes.toBytes("col1")), otsFilter3.getColumnName());
-    assertEquals("val", Bytes.toStringUTF8(otsFilter3.getColumnValue().asBinary()));
+    assertEquals("col1", otsFilter3.getColumnName());
+    assertEquals("val", Bytes.toString(otsFilter3.getColumnValue().asBinary()));
     assertEquals(com.alicloud.openservices.tablestore.model.filter.
             SingleColumnValueFilter.CompareOperator.GREATER_THAN, otsFilter3.getOperator());
   }

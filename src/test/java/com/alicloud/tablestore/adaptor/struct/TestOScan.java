@@ -2,8 +2,8 @@ package com.alicloud.tablestore.adaptor.struct;
 
 import com.alicloud.openservices.tablestore.model.RangeRowQueryCriteria;
 import com.alicloud.openservices.tablestore.model.filter.SingleColumnValueFilter;
-import com.alicloud.tablestore.adaptor.client.util.Bytes;
 import com.alicloud.tablestore.adaptor.filter.OSingleColumnValueFilter;
+import org.apache.hadoop.hbase.util.Bytes;
 
 import org.junit.Test;
 

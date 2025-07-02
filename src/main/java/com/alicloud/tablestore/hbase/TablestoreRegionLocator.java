@@ -31,11 +31,6 @@ public class TablestoreRegionLocator implements RegionLocator {
     }
 
     @Override
-    public void clearRegionLocationCache() {
-        throw new UnsupportedOperationException("clearRegionLocationCache");
-    }
-
-    @Override
     public HRegionLocation getRegionLocation(byte[] bytes) throws IOException {
         return getRegionLocation(bytes, false);
     }
@@ -48,23 +43,6 @@ public class TablestoreRegionLocator implements RegionLocator {
             }
         }
         throw new IOException("Region not found for row: " + Bytes.toStringBinary(bytes));
-    }
-
-    @Override
-    public List<HRegionLocation> getRegionLocations(byte[] row, boolean reload) throws IOException {
-        List<HRegionLocation> regions = new ArrayList<HRegionLocation>();
-        for(HRegionLocation region : getRegions(reload)) {
-            if (region.getRegionInfo().containsRow(row)) {
-                regions.add(region);
-            }
-        }
-
-        return regions;
-    }
-
-    @Override
-    public HRegionLocation getRegionLocation(byte[] row, int replicaId, boolean reload) throws IOException {
-        return getRegionLocation(row, reload);
     }
 
     @Override

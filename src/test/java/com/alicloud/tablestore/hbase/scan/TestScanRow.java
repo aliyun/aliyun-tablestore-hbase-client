@@ -1,7 +1,10 @@
 package com.alicloud.tablestore.hbase.scan;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.*;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.security.access.Permission;
 import org.apache.hadoop.hbase.security.visibility.Authorizations;
@@ -31,14 +34,11 @@ public class TestScanRow {
         columnValue = "col_1_var";
 
         TableName tableName = TableName.valueOf(config.get("hbase.client.tablestore.table"));
-        if (connection.getAdmin().tableExists(tableName)) {
-            connection.getAdmin().deleteTable(tableName);
+        if (!connection.getAdmin().tableExists(tableName)) {
+            HTableDescriptor descriptor = new HTableDescriptor(tableName);
+            connection.getAdmin().createTable(descriptor);
             TimeUnit.SECONDS.sleep(1);
         }
-        HTableDescriptor descriptor = new HTableDescriptor(tableName);
-        descriptor.addFamily(new HColumnDescriptor(familyName).setMaxVersions(3));
-        connection.getAdmin().createTable(descriptor);
-        TimeUnit.SECONDS.sleep(1);
         table = connection.getTable(tableName);
     }
 
@@ -58,7 +58,6 @@ public class TestScanRow {
         ResultScanner scanResult = table.getScanner(scan);
 
         for (Result row : scanResult) {
-            if (row.getRow() == null) continue;
             Delete delete = new Delete(row.getRow());
             table.delete(delete);
         }
@@ -256,7 +255,7 @@ public class TestScanRow {
     }
 
     @Test
-    public void testScanRowWithTimeRange() throws IOException {
+    public void testScanRowWithTimerange() throws IOException {
         clean();
         String row = rowPrefix + 0;
         putRow(row + 0, 1000);

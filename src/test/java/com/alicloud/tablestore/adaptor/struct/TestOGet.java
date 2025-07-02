@@ -2,7 +2,6 @@ package com.alicloud.tablestore.adaptor.struct;
 
 import com.alicloud.openservices.tablestore.model.SingleRowQueryCriteria;
 import com.alicloud.openservices.tablestore.model.filter.SingleColumnValueFilter;
-import com.alicloud.tablestore.adaptor.client.util.Bytes;
 import com.alicloud.tablestore.adaptor.struct.OGet;
 import com.alicloud.tablestore.adaptor.client.OTSConstants;
 import com.alicloud.tablestore.adaptor.filter.OSingleColumnValueFilter;
@@ -10,6 +9,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import org.apache.hadoop.hbase.util.Bytes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 

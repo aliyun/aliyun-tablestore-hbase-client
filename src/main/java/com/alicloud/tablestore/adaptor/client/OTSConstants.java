@@ -1,7 +1,5 @@
 package com.alicloud.tablestore.adaptor.client;
 
-import org.apache.hadoop.hbase.HConstants;
-
 public class OTSConstants {
   /**
    * An empty instance.
@@ -22,14 +20,6 @@ public class OTSConstants {
 
   public static final String UTF8_ENCODING = "utf-8";
 
-  public static final String USE_UTF8_ENCODING = "hbase.client.tablestore.use_utf8";
-
-  /**
-   * In hbase server, LATEST_TIMESTAMP will be converted to EnvironmentEdgeManager.currentTime()
-   */
-  public static long LATEST_TIMESTAMP = HConstants.LATEST_TIMESTAMP;
-
-  public static final String GLOBAL_FAMILY_CONF_KEY = "hbase.client.tablestore.family";
-  public static final String DEFAULT_FAMILY_NAME = "s";
+  public static long LATEST_TIMESTAMP = Long.MAX_VALUE;
 
 }

@@ -1,17 +1,14 @@
 package com.alicloud.tablestore.adaptor.struct;
 
 
-import com.alicloud.openservices.tablestore.AsyncClientInterface;
 import com.alicloud.openservices.tablestore.core.utils.Preconditions;
 import com.alicloud.openservices.tablestore.model.ColumnValue;
-import com.alicloud.openservices.tablestore.model.GetRowResponse;
 import com.alicloud.openservices.tablestore.model.PrimaryKey;
 import com.alicloud.openservices.tablestore.model.RowUpdateChange;
 import com.alicloud.tablestore.adaptor.client.OTSConstants;
-import com.alicloud.tablestore.adaptor.client.util.Bytes;
 import com.alicloud.tablestore.adaptor.client.util.OTSUtil;
-import com.alicloud.tablestore.hbase.ColumnMapping;
 import org.apache.hadoop.hbase.client.WrongRowIOException;
+import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -46,29 +43,20 @@ public class OUpdate extends OMutation implements Comparable<ORow> {
         this.keyValues.addAll(m.getKeyValues());
     }
 
-    public RowUpdateChange toOTSParameter(String tableName) throws IOException {
+    public RowUpdateChange toOTSParameter(String tableName) {
         PrimaryKey primaryKey = OTSUtil.toPrimaryKey(getRow(), OTSConstants.PRIMARY_KEY_NAME);
-
         RowUpdateChange ruc = new RowUpdateChange(tableName, primaryKey);
         for (com.alicloud.tablestore.adaptor.struct.OColumnValue kv : keyValues) {
-            switch (kv.getType()) {
-                case PUT:
-                    if (kv.getTimestamp() == OTSConstants.LATEST_TIMESTAMP) {
-                        ruc.put(ColumnMapping.getTablestoreColumnName(
-                                kv.getQualifier()), ColumnValue.fromBinary(kv.getValue()));
-                    } else {
-                        ruc.put(ColumnMapping.getTablestoreColumnName(
-                                kv.getQualifier()), ColumnValue.fromBinary(kv.getValue()), kv.getTimestamp());
-                    }
-                    break;
-                case DELETE:
-                    ruc.deleteColumn(ColumnMapping.getTablestoreColumnName(kv.getQualifier()), kv.getTimestamp());
-                    break;
-                case DELETE_ALL:
-                    ruc.deleteColumns(ColumnMapping.getTablestoreColumnName(kv.getQualifier()));
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unknown type: " + kv.getType().name());
+            if (kv.getType() == OColumnValue.Type.PUT) {
+                if (kv.getTimestamp() == OTSConstants.LATEST_TIMESTAMP) {
+                    ruc.put(Bytes.toString(kv.getQualifier()), ColumnValue.fromBinary(kv.getValue()));
+                } else {
+                    ruc.put(Bytes.toString(kv.getQualifier()), ColumnValue.fromBinary(kv.getValue()), kv.getTimestamp());
+                }
+            } else if (kv.getType() == OColumnValue.Type.DELETE) {
+                ruc.deleteColumn(Bytes.toString(kv.getQualifier()), kv.getTimestamp());
+            } else if (kv.getType() == OColumnValue.Type.DELETE_ALL) {
+                ruc.deleteColumns(Bytes.toString(kv.getQualifier()));
             }
         }
         ruc.setCondition(getCondition());

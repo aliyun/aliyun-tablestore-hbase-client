@@ -55,7 +55,6 @@ public class TestDeleteRow {
         ResultScanner scanResult = table.getScanner(scan);
 
         for (Result row : scanResult) {
-            if (row.getRow() == null) continue;
             Delete delete = new Delete(row.getRow());
             table.delete(delete);
         }
@@ -98,27 +97,16 @@ public class TestDeleteRow {
             table.put(put);
         }
 
-        Delete delete = new Delete(Bytes.toBytes(row));
+        Delete delete = new Delete(Bytes.toBytes(row + 0));
         delete.addColumn(familyName, Bytes.toBytes("col_1"));
-        delete.addColumn(familyName, Bytes.toBytes("col_2"));
         table.delete(delete);
-
-        {
-            Get get = new Get(Bytes.toBytes(row));
-            Result result = table.get(get);
-            List<Cell> cells1 = result.getColumnCells(familyName, Bytes.toBytes("col_1"));
-            List<Cell> cells2 = result.getColumnCells(familyName, Bytes.toBytes("col_2"));
-            assertEquals(1, cells1.size());
-            assertEquals(1000, cells1.get(0).getTimestamp());
-            assertEquals(1, cells2.size());
-            assertEquals(1000, cells2.get(0).getTimestamp());
-        }
     }
 
     @Test
     public void testDeleteSpecialColumnVersion() throws IOException {
         clean();
         byte[] familyName = Bytes.toBytes(family);
+
 
         {
             byte[] rowKey = Bytes.toBytes(rowPrefix);
@@ -198,22 +186,9 @@ public class TestDeleteRow {
     @Test(expected=UnsupportedOperationException.class)
     public void testDeleteWithTimestamp() throws IOException {
         clean();
-        byte[] familyName = Bytes.toBytes(family);
-        {
-            byte[] rowKey = Bytes.toBytes(rowPrefix);
-
-            Put put = new Put(rowKey);
-            put.addColumn(familyName, Bytes.toBytes(columnName), 1000, Bytes.toBytes("var_1"));
-            table.put(put);
-        }
-
         Delete delete = new Delete(Bytes.toBytes(rowPrefix));
-        delete.setTimestamp(1000);
+        delete.setTimestamp(100);
         table.delete(delete);
-
-        Get get = new Get(Bytes.toBytes(rowPrefix));
-        byte[] result = table.get(get).getRow();
-        assertTrue(result == null);
     }
 
     @Test
@@ -240,7 +215,7 @@ public class TestDeleteRow {
         assertTrue(result == null);
     }
 
-    @Test(expected=UnsupportedOperationException.class)
+    @Test
     public void testDeleteWithFamilyVersion() throws IOException {
         clean();
         Delete delete = new Delete(Bytes.toBytes(rowPrefix));
@@ -267,21 +242,8 @@ public class TestDeleteRow {
     @Test(expected=UnsupportedOperationException.class)
     public void testDeleteWithColumns2() throws IOException {
         clean();
-        byte[] familyName = Bytes.toBytes(family);
-        {
-            byte[] rowKey = Bytes.toBytes(rowPrefix);
-
-            Put put = new Put(rowKey);
-            put.addColumn(familyName, Bytes.toBytes(columnName), 1000, Bytes.toBytes("var_1"));
-            table.put(put);
-        }
-
         Delete delete = new Delete(Bytes.toBytes(rowPrefix));
         delete.addColumns(Bytes.toBytes(family), Bytes.toBytes(columnName), 1000);
         table.delete(delete);
-
-        Get get = new Get(Bytes.toBytes(rowPrefix));
-        byte[] result = table.get(get).getRow();
-        assertTrue(result == null);
     }
 }

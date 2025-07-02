@@ -209,23 +209,24 @@ public class OTSAdapter implements OTSInterface {
     otsProxy.deleteMultiple(tableName, deletes);
 
   }
-
+  
   @Override
   public void batch(String tableName, List<? extends com.alicloud.tablestore.adaptor.struct.ORow> actions, Object[] results)
       throws IOException {
     otsProxy.batch(tableName, actions, results);
+
   }
 
   @Override
   public Object[] batch(String tableName, List<? extends com.alicloud.tablestore.adaptor.struct.ORow> actions) throws IOException {
     return otsProxy.batch(tableName, actions);
   }
-
+  
   public void setOperationTimeout(int operationTimeout) {
     clientConf.setOperationTimeout(operationTimeout);
   }
-
-  public int getOperationTimeout() {
+  
+  public int getOperationTimeout() { 
     return clientConf.getOperationTimeout();
   }
 

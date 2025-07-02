@@ -1,26 +1,23 @@
 package com.alicloud.tablestore.hbase;
 
 import com.alicloud.openservices.tablestore.model.condition.SingleColumnValueCondition;
-import com.alicloud.tablestore.adaptor.client.OTSConstants;
-import com.alicloud.tablestore.adaptor.client.util.OTSUtil;
-import com.alicloud.tablestore.adaptor.struct.OColumnValue;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.hadoop.hbase.util.Bytes;
-
-import java.util.Arrays;
-import java.util.Optional;
 
 import static org.apache.hadoop.hbase.filter.CompareFilter.*;
 
 public class ColumnMapping {
+
+    private static final String GLOBAL_FAMILY_CONF_KEY = "hbase.client.tablestore.family";
+    private static final String DEFAULT_FAMILY_NAME = "f";
+
     private byte[] familyNameBytes;
 
     public ColumnMapping(String tableName, Configuration conf) {
-        String tableFamilyName = conf.get(OTSConstants.GLOBAL_FAMILY_CONF_KEY + "." + tableName,
-                conf.get(OTSConstants.GLOBAL_FAMILY_CONF_KEY, OTSConstants.DEFAULT_FAMILY_NAME));
-        this.familyNameBytes = com.alicloud.tablestore.adaptor.client.util.Bytes.toBytes(tableFamilyName);
+        String tableFamilyName = conf.get(GLOBAL_FAMILY_CONF_KEY + "." + tableName,
+                conf.get(GLOBAL_FAMILY_CONF_KEY, DEFAULT_FAMILY_NAME));
+        this.familyNameBytes = Bytes.toBytes(tableFamilyName);
     }
 
     public boolean isSupportMultiColumnFamily() {
@@ -29,10 +26,6 @@ public class ColumnMapping {
 
     public byte[] getTablestoreColumn(byte[] columnFamily, byte[] column) {
         return column;
-    }
-
-    public static String getTablestoreColumnName(byte[] column) {
-        return com.alicloud.tablestore.adaptor.client.util.Bytes.toStringUTF8(column);
     }
 
     public SingleColumnValueCondition.CompareOperator getTablestoreCompareOp(CompareOp op) {

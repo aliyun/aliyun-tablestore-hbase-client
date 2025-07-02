@@ -1,6 +1,5 @@
 package com.alicloud.tablestore.hbase.get;
 
-import com.alicloud.tablestore.adaptor.client.util.Bytes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -8,6 +7,7 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.filter.*;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -42,7 +42,6 @@ public class TestSingleColumnValueFilter {
         ResultScanner scanResult = table.getScanner(scan);
 
         for (Result row : scanResult) {
-            if (row.getRow() == null) continue;
             Delete delete = new Delete(row.getRow());
             table.delete(delete);
         }

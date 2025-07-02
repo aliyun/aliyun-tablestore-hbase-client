@@ -15,10 +15,7 @@ import java.util.TreeSet;
 import com.alicloud.openservices.tablestore.model.*;
 import com.alicloud.tablestore.adaptor.client.OClientScanner;
 import com.alicloud.tablestore.adaptor.client.util.Bytes;
-import com.alicloud.tablestore.adaptor.client.util.OTSUtil;
 import com.alicloud.tablestore.adaptor.filter.OColumnPaginationFilter;
-import com.alicloud.tablestore.adaptor.filter.OColumnRangeFilter;
-import com.alicloud.tablestore.hbase.ColumnMapping;
 
 /**
  * Used to perform Scan operations.
@@ -307,7 +304,7 @@ public class OScan {
     criteria.setMaxVersions(getMaxVersions());
     criteria.setTimeRange(com.alicloud.tablestore.adaptor.client.util.OTSUtil.toTimeRange(getTimeRange()));
     for (byte[] col : columnsToGet) {
-      criteria.addColumnsToGet(ColumnMapping.getTablestoreColumnName(col));
+      criteria.addColumnsToGet(com.alicloud.tablestore.adaptor.client.util.Bytes.toString(col));
     }
     if (getStartRow().length == 0) {
       List<PrimaryKeyColumn> pks = new ArrayList<PrimaryKeyColumn>();
@@ -336,7 +333,21 @@ public class OScan {
     if (getCaching() > 0) {
       criteria.setLimit(getCaching());
     }
-    OTSUtil.handleFilterForRowQueryCriteria(criteria, getFilter());
+    if (hasFilter()) {
+      if (filter instanceof OColumnPaginationFilter) {
+        com.alicloud.tablestore.adaptor.filter.OColumnPaginationFilter oFilter = (OColumnPaginationFilter) filter;
+        com.alicloud.openservices.tablestore.model.filter.ColumnPaginationFilter columnPaginationFilter =
+                new com.alicloud.openservices.tablestore.model.filter.ColumnPaginationFilter(oFilter.getLimit());
+        if (oFilter.getColumnOffset() == null) {
+          columnPaginationFilter.setOffset(oFilter.getOffset());
+        } else {
+          criteria.setStartColumn(Bytes.toString(oFilter.getColumnOffset()));
+        }
+        criteria.setFilter(columnPaginationFilter);
+      } else{
+          criteria.setFilter(com.alicloud.tablestore.adaptor.client.util.OTSUtil.toFilter(getFilter()));
+      }
+    }
 
     if (getReversed()) {
       criteria.setDirection(Direction.BACKWARD);

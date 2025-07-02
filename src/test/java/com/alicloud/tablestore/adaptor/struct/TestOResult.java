@@ -35,7 +35,7 @@ public class TestOResult {
 
     Arrays.sort(cvs, OColumnValue.KEY_COMPARATOR);
 
-    OResult r = new OResult(row, cvs);
+    OResult r = new OResult(cvs);
 
     for (int i = 0; i < 100; ++i) {
       final byte[] qf = Bytes.toBytes(i);
@@ -61,7 +61,7 @@ public class TestOResult {
 
     Arrays.sort(cvs, OColumnValue.KEY_COMPARATOR);
 
-    OResult r = new OResult(row, cvs);
+    OResult r = new OResult(cvs);
     for (int i = 0; i < 100; ++i) {
       final byte[] qf = Bytes.toBytes(i);
 
@@ -82,8 +82,8 @@ public class TestOResult {
     OColumnValue[] cvs2 = genCVs(value, 1, 100);
     Arrays.sort(cvs1, OColumnValue.KEY_COMPARATOR);
     Arrays.sort(cvs2, OColumnValue.KEY_COMPARATOR);
-    OResult res1 = new OResult(row, cvs1);
-    OResult res2 = new OResult(row, cvs2);
+    OResult res1 = new OResult(cvs1);
+    OResult res2 = new OResult(cvs2);
     OResult.compareResults(res1, res2);
   }
 

@@ -6,7 +6,6 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -54,7 +53,6 @@ public class TestBatchRow {
         ResultScanner scanResult = table.getScanner(scan);
 
         for (Result row : scanResult) {
-            if (row.getRow() == null) continue;
             Delete delete = new Delete(row.getRow());
             table.delete(delete);
         }
@@ -139,9 +137,9 @@ public class TestBatchRow {
             Put put = new Put(Bytes.toBytes(row));
             put.addColumn(Bytes.toBytes(family), Bytes.toBytes(columnName), Bytes.toBytes(columnValue));
 
-            Get get = new Get(Bytes.toBytes(row));
+            Get get = new Get(Bytes.toBytes(row + 1));
 
-            Delete delete = new Delete(Bytes.toBytes(row));
+            Delete delete = new Delete(Bytes.toBytes(row + 2));
 
             List<Row> rows = new ArrayList<Row>();
             rows.add(put);

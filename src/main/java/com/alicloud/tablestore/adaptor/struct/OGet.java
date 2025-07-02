@@ -16,9 +16,6 @@ import com.alicloud.tablestore.adaptor.client.OTSConstants;
 import com.alicloud.tablestore.adaptor.client.util.Bytes;
 import com.alicloud.tablestore.adaptor.client.util.OTSUtil;
 import com.alicloud.tablestore.adaptor.filter.OColumnPaginationFilter;
-import com.alicloud.tablestore.adaptor.filter.OColumnRangeFilter;
-import com.alicloud.tablestore.hbase.ColumnMapping;
-import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.filter.ColumnPaginationFilter;
 
 /**
@@ -76,7 +73,7 @@ public class OGet implements com.alicloud.tablestore.adaptor.struct.ORow, Compar
   /**
    * Get the column with the specified qualifier.
    * @param qualifier column qualifier
-   * @return the Get object
+   * @return the Get objec
    */
   public OGet addColumn(byte[] qualifier) {
     this.columnsToGet.add(qualifier);
@@ -186,9 +183,23 @@ public class OGet implements com.alicloud.tablestore.adaptor.struct.ORow, Compar
     criteria.setMaxVersions(getMaxVersions());
     criteria.setTimeRange(OTSUtil.toTimeRange(getTimeRange()));
     for (byte[] col : columnsToGet) {
-      criteria.addColumnsToGet(ColumnMapping.getTablestoreColumnName(col));
+      criteria.addColumnsToGet(Bytes.toString(col));
     }
-    OTSUtil.handleFilterForRowQueryCriteria(criteria, getFilter());
+    if (filter != null) {
+      if (filter instanceof OColumnPaginationFilter) {
+        OColumnPaginationFilter oFilter = (OColumnPaginationFilter)filter;
+        com.alicloud.openservices.tablestore.model.filter.ColumnPaginationFilter columnPaginationFilter =
+                new com.alicloud.openservices.tablestore.model.filter.ColumnPaginationFilter(oFilter.getLimit());
+        if (oFilter.getColumnOffset() == null) {
+          columnPaginationFilter.setOffset(oFilter.getOffset());
+        } else {
+          criteria.setStartColumn(Bytes.toString(oFilter.getColumnOffset()));
+        }
+        criteria.setFilter(columnPaginationFilter);
+      } else {
+        criteria.setFilter(OTSUtil.toFilter(getFilter()));
+      }
+    }
     return criteria;
   }
 

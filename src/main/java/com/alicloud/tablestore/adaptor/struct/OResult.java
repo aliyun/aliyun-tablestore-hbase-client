@@ -56,8 +56,7 @@ public class OResult {
    * Instantiate a Result with the specified array of KeyValues.
    * @param kvs array of KeyValues
    */
-  public OResult(byte[] row, OColumnValue[] kvs) {
-    this.row = row;
+  public OResult(OColumnValue[] kvs) {
     if (kvs == null) {
       this.kvs = new OColumnValue[0];
     } else {
@@ -69,8 +68,8 @@ public class OResult {
    * Instantiate a Result with the specified List of KeyValues.
    * @param kvs List of KeyValues
    */
-  public OResult(byte[] row, List<OColumnValue> kvs) {
-    this(row, kvs.toArray(new OColumnValue[kvs.size()]));
+  public OResult(List<OColumnValue> kvs) {
+    this(kvs.toArray(new OColumnValue[kvs.size()]));
   }
 
   /**
@@ -95,7 +94,7 @@ public class OResult {
    * column "A" 1 version you will have at most 1 KeyValue in the array. If you request column "A"
    * with 2 version you will have at most 2 KeyValues, with the first one being the newer timestamp
    * and the second being the older timestamp. If columns don't exist, they won't be present in the
-   * result. Therefore, if you ask for 1 version all columns, it is safe to iterate over this array
+   * result. Therefore if you ask for 1 version all columns, it is safe to iterate over this array
    * and expect to see 1 KeyValue for each column and no more.
    * <p/>
    * This API is faster than using getMap()

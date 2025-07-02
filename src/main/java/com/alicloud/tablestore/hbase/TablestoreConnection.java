@@ -35,16 +35,6 @@ public class TablestoreConnection implements Connection {
         this.tablestoreConf = loadOtsConf(conf);
     }
 
-    public TablestoreConnection(Configuration conf, ExecutorService pool, User user) {
-        this(conf, pool, user, null);
-    }
-
-    public TablestoreConnection(Configuration conf, ExecutorService pool, User user, Map<String, byte[]> connectionAttributes) {
-        this.hbaseConf = conf;
-        this.closed = false;
-        this.tablestoreConf = loadOtsConf(conf);
-    }
-
     @Override
     public Configuration getConfiguration() {
         return this.hbaseConf;
@@ -71,11 +61,6 @@ public class TablestoreConnection implements Connection {
     }
 
     @Override
-    public TableBuilder getTableBuilder(TableName tableName, ExecutorService pool) {
-        throw new UnsupportedOperationException("Tablestore does not support getTableBuilder.");
-    }
-
-    @Override
     public BufferedMutator getBufferedMutator(TableName tableName) throws IOException {
         Preconditions.checkNotNull(tableName);
         return new TablestoreBufferedMutator(this, tableName);
@@ -92,11 +77,6 @@ public class TablestoreConnection implements Connection {
     public RegionLocator getRegionLocator(TableName tableName) throws IOException {
         Preconditions.checkNotNull(tableName);
         return new TablestoreRegionLocator(this, tableName);
-    }
-
-    @Override
-    public void clearRegionLocationCache() {
-        throw new UnsupportedOperationException("Tablestore does not support clearRegionLocationCache.");
     }
 
     @Override
